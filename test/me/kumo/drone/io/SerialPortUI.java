@@ -5,6 +5,7 @@ import com.fazecast.jSerialComm.SerialPort;
 import javax.swing.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.util.Objects;
 
 public class SerialPortUI extends JFrame {
 
@@ -98,8 +99,36 @@ public class SerialPortUI extends JFrame {
         return panel;
     }
 
-    private record SerialPortDataListener(
-            JTextArea textArea) implements com.fazecast.jSerialComm.SerialPortDataListener {
+    private final class SerialPortDataListener implements com.fazecast.jSerialComm.SerialPortDataListener {
+        private final JTextArea textArea;
+
+        private SerialPortDataListener(
+                JTextArea textArea) {
+            this.textArea = textArea;
+        }
+
+        public JTextArea textArea() {
+            return textArea;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            SerialPortDataListener that = (SerialPortDataListener) obj;
+            return Objects.equals(this.textArea, that.textArea);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(textArea);
+        }
+
+        @Override
+        public String toString() {
+            return "SerialPortDataListener[" +
+                    "textArea=" + textArea + ']';
+        }
 
         @Override
         public int getListeningEvents() {
