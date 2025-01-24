@@ -28,8 +28,8 @@ public class SerialPortUI extends JFrame {
         portSelector1.addItem(null);
         portSelector2.addItem(null);
         for (SerialPort port : ports) {
-            portSelector1.addItem(port.getSystemPortName() + " - " + port.getDescriptivePortName());
-            portSelector2.addItem(port.getSystemPortName() + " - " + port.getDescriptivePortName());
+            portSelector1.addItem(port.getSystemPortName());
+            portSelector2.addItem(port.getSystemPortName());
         }
 
 
@@ -83,6 +83,7 @@ public class SerialPortUI extends JFrame {
             }
             if (selectedPortName != null) {
                 selectedPort = SerialPort.getCommPort(selectedPortName);
+                selectedPort.setBaudRate(57600);
                 selectedPort.openPort();
                 selectedPort.addDataListener(new SerialPortDataListener(textArea));
                 sendField.setEnabled(true);
@@ -99,7 +100,7 @@ public class SerialPortUI extends JFrame {
         return panel;
     }
 
-    private final class SerialPortDataListener implements com.fazecast.jSerialComm.SerialPortDataListener {
+    private static final class SerialPortDataListener implements com.fazecast.jSerialComm.SerialPortDataListener {
         private final JTextArea textArea;
 
         private SerialPortDataListener(
