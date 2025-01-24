@@ -26,17 +26,10 @@ dependencies {
     implementation("org.jmonkeyengine:jme3-plugins:$jmeVersion")
 //    implementation("org.jmonkeyengine:jme3-awt-dialogs:$jmeVersion")
 
-
     implementation("org.slf4j:slf4j-api:2.0.16")
     implementation("org.slf4j:slf4j-simple:2.0.16")
 
-    implementation("com.simsilica:lemur:1.16.0")
-    implementation("net.codecrete.usb:java-does-usb:1.1.2")
     implementation("com.fazecast:jSerialComm:2.11.0")
-//    implementation("org.usb4java:usb4java-javax:1.3.0")
-//    implementation("org.usb4java:usb4java:1.3.0")
-//    implementation("javax.usb:usb-api:1.0.2")
-
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }

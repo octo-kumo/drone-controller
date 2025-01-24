@@ -1,1 +1,0 @@
-Various utility classes and interfaces that are used by other classes and interfaces in the javax.usb specification.
