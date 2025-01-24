@@ -28,6 +28,7 @@ dependencies {
 
     implementation("org.slf4j:slf4j-api:2.0.16")
     implementation("org.slf4j:slf4j-simple:2.0.16")
+    implementation("com.simsilica:lemur:1.16.0")
 
     implementation("com.fazecast:jSerialComm:2.11.0")
     testImplementation(platform("org.junit:junit-bom:5.10.0"))

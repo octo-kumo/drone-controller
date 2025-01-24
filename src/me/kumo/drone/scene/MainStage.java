@@ -45,7 +45,6 @@ public class MainStage extends SimpleApplication {
         gui.setLocalTranslation(0, settings.getHeight(), 0);
         gui.addChild(new Label("Drone Control"));
         Button clickMe = gui.addChild(new Button("Radio Control"));
-        clickMe.addClickCommands(_ -> radio.showWindow());
     }
 
     private void createStage() {
@@ -66,6 +65,5 @@ public class MainStage extends SimpleApplication {
     @Override
     public void destroy() {
         super.destroy();
-        radio.window.dispose();
     }
 }
