@@ -1,0 +1,33 @@
+plugins {
+    id 'java-library'
+    id "io.github.0ffz.github-packages" version "1.2.1"
+    // Plugin for anonymous inclusion of artifacts hosted in github package registry
+}
+
+java {
+
+    sourceCompatibility = '8'
+    targetCompatibility = '8'
+
+}
+
+ext.jmonkeyengineVersion = '3.7.0-stable'
+
+dependencies {
+    implementation 'org.apache.groovy:groovy-all:4.0.25'
+
+    implementation 'org.jmonkeyengine:jme3-core:' + jmonkeyengineVersion
+    runtimeOnly 'org.jmonkeyengine:jme3-jogg:' + jmonkeyengineVersion
+    runtimeOnly 'org.jmonkeyengine:jme3-plugins:' + jmonkeyengineVersion
+
+    implementation 'org.jmonkeyengine:jme3-effects:' + jmonkeyengineVersion
+    implementation 'org.jmonkeyengine:jme3-terrain:' + jmonkeyengineVersion
+    implementation 'org.jmonkeyengine:jme3-testdata:' + jmonkeyengineVersion
+
+
+    implementation 'com.github.stephengold:SkyControl:1.1.0'
+    implementation 'com.fazecast:jSerialComm:2.11.0'
+    implementation 'com.simsilica:lemur:1.16.0'
+//    implementation 'com.simsilica:lemur-proto:1.13.0'
+    implementation 'com.github.stephengold:Minie:8.2.0'
+}

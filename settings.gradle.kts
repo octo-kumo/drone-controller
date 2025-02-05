@@ -1,2 +1,0 @@
-rootProject.name = "drone-controller"
-
