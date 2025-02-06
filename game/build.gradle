@@ -22,7 +22,7 @@ dependencies {
 
     implementation 'org.jmonkeyengine:jme3-effects:' + jmonkeyengineVersion
     implementation 'org.jmonkeyengine:jme3-terrain:' + jmonkeyengineVersion
-    implementation 'org.jmonkeyengine:jme3-testdata:' + jmonkeyengineVersion
+//    implementation 'org.jmonkeyengine:jme3-testdata:' + jmonkeyengineVersion
 
 
     implementation 'com.github.stephengold:SkyControl:1.1.0'

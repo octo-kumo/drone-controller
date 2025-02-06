@@ -15,6 +15,8 @@ public class DroneEntity {
     public DroneEntity(AssetManager assetManager) {
         modelNode = (Node) assetManager.loadModel("Models/Drone.glb");
         modelNode.setShadowMode(RenderQueue.ShadowMode.CastAndReceive);
+        modelNode.setUserData("minimap", "Drone");
+        modelNode.setLocalScale(5);
         addOrientationHelpers();
     }
 

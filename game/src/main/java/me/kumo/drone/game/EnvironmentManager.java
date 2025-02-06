@@ -33,6 +33,7 @@ public class EnvironmentManager {
         this.rootNode = rootNode;
         this.cam = cam;
         this.viewPort = viewPort;
+
         createGround();
         initializeLights();
         initializeSky();

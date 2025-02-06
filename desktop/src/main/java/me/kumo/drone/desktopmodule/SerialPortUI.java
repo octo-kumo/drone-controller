@@ -5,6 +5,7 @@ import com.fazecast.jSerialComm.SerialPort;
 import javax.swing.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.util.Arrays;
 import java.util.Objects;
 
 public class SerialPortUI extends JFrame {
@@ -86,6 +87,7 @@ public class SerialPortUI extends JFrame {
                 selectedPort.setBaudRate(57600);
                 selectedPort.openPort();
                 selectedPort.addDataListener(new SerialPortDataListener(textArea));
+                System.out.println("Opened port: " + selectedPortName + " " + selectedPort);
                 sendField.setEnabled(true);
                 if (labelText.contains("1")) {
                     selectedPort1 = selectedPort;
@@ -142,6 +144,7 @@ public class SerialPortUI extends JFrame {
             SerialPort port = (SerialPort) event.getSource();
             byte[] buffer = new byte[port.bytesAvailable()];
             port.readBytes(buffer, buffer.length);
+            System.out.println(Arrays.toString(buffer));
             String data = new String(buffer);
             SwingUtilities.invokeLater(() -> textArea.append(data));
         }

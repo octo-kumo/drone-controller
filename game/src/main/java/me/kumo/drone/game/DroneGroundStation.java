@@ -1,8 +1,10 @@
 package me.kumo.drone.game;
 
+import com.fazecast.jSerialComm.SerialPort;
 import com.jme3.app.SimpleApplication;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
+import com.jme3.scene.Node;
 import com.simsilica.lemur.*;
 import com.simsilica.lemur.component.TbtQuadBackgroundComponent;
 import com.simsilica.lemur.core.VersionedReference;
@@ -43,6 +45,9 @@ public class DroneGroundStation extends SimpleApplication {
 
         setupUI();
         setupCamera();
+
+        MiniMapState minimap = new MiniMapState(rootNode, 64f, 200);
+        stateManager.attach(minimap);
     }
 
     private void setupCamera() {
@@ -57,7 +62,7 @@ public class DroneGroundStation extends SimpleApplication {
         Container hud = new Container();
         TbtQuadBackgroundComponent c = (TbtQuadBackgroundComponent) hud.getBackground();
         c.setColor(new ColorRGBA(0, 0, 0, 1f));
-        hud.setLocalTranslation(settings.getWidth() - 300, settings.getHeight() - 20, 0);
+        hud.setLocalTranslation(settings.getWidth() - 300, settings.getHeight() - 300, 0);
         altitude = hud.addChild(new Label("Altitude: 0 m"));
         gps = hud.addChild(new Label("GPS: 0, 0"));
         pressure = hud.addChild(new Label("Pressure: 0 hPa"));
@@ -67,10 +72,10 @@ public class DroneGroundStation extends SimpleApplication {
         guiNode.attachChild(hud);
 
         Container portSelection = new Container();
-        portSelection.setLocalTranslation(settings.getWidth() - 300, 100, 0);
+        portSelection.setLocalTranslation(settings.getWidth() - 300, 300, 0);
         portSelection.addChild(new Label("Select Serial Port:"));
-        Button port1 = portSelection.addChild(new Button("COM1"));
-        port1.addClickCommands(source -> serialHandler.openPort("COM1"));
+        portSelection.addChild(getPorts());
+
         Button debugMode = portSelection.addChild(new Button("Debug Mode"));
         debugMode.addClickCommands(source -> serialHandler.enableDebugMode());
         guiNode.attachChild(portSelection);
@@ -81,6 +86,25 @@ public class DroneGroundStation extends SimpleApplication {
         time.setPreferredSize(new Vector3f(200, 20, 0));
         skyHourRef = time.getModel().createReference();
         guiNode.attachChild(controls);
+    }
+
+    private Node getPorts() {
+        Container ports = new Container();
+        Container portList = new Container();
+        SerialPort[] serialPorts = SerialPort.getCommPorts();
+        for (SerialPort port : serialPorts) {
+            Button portButton = portList.addChild(new Button(port.getSystemPortName() + " (" + port.getPortDescription() + ")"));
+            portButton.addClickCommands(source -> serialHandler.openPort(port.getSystemPortName()));
+        }
+        ports.addChild(portList);
+        ports.addChild(new Button("Refresh")).addClickCommands(s -> {
+            portList.clearChildren();
+            for (SerialPort port : SerialPort.getCommPorts()) {
+                Button portButton = portList.addChild(new Button(port.getSystemPortName() + " (" + port.getPortDescription() + ")"));
+                portButton.addClickCommands(source -> serialHandler.openPort(port.getSystemPortName()));
+            }
+        });
+        return ports;
     }
 
     @Override
