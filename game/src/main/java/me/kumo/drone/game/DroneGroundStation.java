@@ -13,7 +13,8 @@ import jme3utilities.MyCamera;
 import me.kumo.drone.io.SerialDataHandler;
 import me.kumo.drone.logic.DroneData;
 import me.kumo.drone.logic.GPSMapper;
-
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 public class DroneGroundStation extends SimpleApplication {
 
     private SerialDataHandler serialHandler;
@@ -23,10 +24,8 @@ public class DroneGroundStation extends SimpleApplication {
     private EnvironmentManager envManager;
     private VersionedReference<Double> skyHourRef;
 
-    private ProgressBar battery;
-    private Label gps;
-    private Label pressure;
-    private Label altitude;
+    private Label gps, altitude, pressure, speed, satellites, temperature, baroAltitude;
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @Override
     public void simpleInitApp() {
@@ -63,16 +62,19 @@ public class DroneGroundStation extends SimpleApplication {
         TbtQuadBackgroundComponent c = (TbtQuadBackgroundComponent) hud.getBackground();
         c.setColor(new ColorRGBA(0, 0, 0, 1f));
         hud.setLocalTranslation(settings.getWidth() - 300, settings.getHeight() - 300, 0);
+
         altitude = hud.addChild(new Label("Altitude: 0 m"));
         gps = hud.addChild(new Label("GPS: 0, 0"));
         pressure = hud.addChild(new Label("Pressure: 0 hPa"));
-        hud.addChild(new Label("Battery"));
-        battery = hud.addChild(new ProgressBar(new DefaultRangedValueModel(0, 100, 100)));
-        battery.setPreferredSize(new Vector3f(200, 20, 0));
+        speed = hud.addChild(new Label("Speed: 0 m/s"));
+        satellites = hud.addChild(new Label("Satellites: 0"));
+        temperature = hud.addChild(new Label("Temperature: 0 C"));
+        baroAltitude = hud.addChild(new Label("Baro Altitude: 0 m"));
+
         guiNode.attachChild(hud);
 
         Container portSelection = new Container();
-        portSelection.setLocalTranslation(settings.getWidth() - 300, 300, 0);
+        portSelection.setLocalTranslation(settings.getWidth() - 300, 100, 0);
         portSelection.addChild(new Label("Select Serial Port:"));
         portSelection.addChild(getPorts());
 
@@ -109,19 +111,28 @@ public class DroneGroundStation extends SimpleApplication {
 
     @Override
     public void simpleUpdate(float tpf) {
-        if (serialHandler.hasNewData()) {
-            DroneData data = serialHandler.getLatestData();
-            drone.updateFromData(data, gpsMapper);
-            miniDroneDisplay.updateOrientation((float) data.pitch, (float) data.yaw, (float) data.roll);
-
-            battery.getModel().setValue(data.battery);
-            gps.setText(String.format("GPS: %.6f, %.6f", data.latitude, data.longitude));
-            altitude.setText(String.format("Altitude: %.2f m", data.altitude));
-            pressure.setText(String.format("Pressure: %.2f hPa", data.pressure));
-        }
+        
 
         if (skyHourRef.update()) {
             envManager.skyControl.getSunAndStars().setHour(skyHourRef.get().floatValue());
         }
+
+        executor.execute(() -> {
+            if (serialHandler.hasNewData()) {
+                DroneData data = serialHandler.getLatestData();
+                enqueue(() -> {
+                    drone.updateFromData(data, gpsMapper);
+                    miniDroneDisplay.updateOrientation((float) data.pitch, (float) data.yaw, (float) data.roll);
+        
+                    gps.setText(String.format("GPS: %.6f, %.6f", data.latitude, data.longitude));
+                    altitude.setText(String.format("Altitude: %.2f m", data.altitude));
+                    pressure.setText(String.format("Pressure: %.2f hPa", data.pressure));
+                    speed.setText(String.format("Speed: %.2f m/s", data.groundSpeed));
+                    satellites.setText("Satellites: " + data.satellites);
+                    temperature.setText(String.format("Temperature: %.2f C", data.temperature));
+                    baroAltitude.setText(String.format("Baro Altitude: %.2f m", data.baroAltitude));
+                });
+            }
+        });
     }
 }

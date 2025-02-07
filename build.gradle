@@ -31,6 +31,6 @@ task buildAllDistributions {
     }
 }
 
-setupAndroidSdk {
-    sdkToolsVersion '11076708_latest'
-}
+// setupAndroidSdk {
+//     sdkToolsVersion '11076708_latest'
+// }

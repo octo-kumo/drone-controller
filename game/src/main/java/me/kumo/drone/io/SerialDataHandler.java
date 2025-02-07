@@ -26,7 +26,7 @@ public class SerialDataHandler {
         closePort();
         port = SerialPort.getCommPort(portName);
         port.setBaudRate(57600);
-        port.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 2000, 0);
+        port.setComPortTimeouts(SerialPort.TIMEOUT_READ_BLOCKING, 2000, 0);
         if (port.openPort()) System.out.println("Port opened: " + portName);
         else System.out.println("Failed to open port: " + portName);
     }
@@ -67,22 +67,23 @@ public class SerialDataHandler {
         latestData.pitch = 100 * Math.sin(currentTime / 4000.0);
         latestData.yaw = 100 * Math.sin(currentTime / 5000.0);
         latestData.pressure = 1013.25;
-        latestData.battery = (int) (50 + 50 * Math.sin(currentTime / 10000.0));
     }
 
     private void readSerialData() {
         try {
+            
+            // Read barometer packet
+            byte[] baroPacket = readPacket(BARO_SIZE);
+            if (baroPacket != null) {
+                parseBaroPacket(baroPacket);
+            }
+
             // Read telemetry packet
             byte[] telemetryPacket = readPacket(TELEMETRY_SIZE);
             if (telemetryPacket != null) {
                 parseTelemetryPacket(telemetryPacket);
             }
 
-            // Read barometer packet
-            byte[] baroPacket = readPacket(BARO_SIZE);
-            if (baroPacket != null) {
-                parseBaroPacket(baroPacket);
-            }
         } catch (Exception e) {
             System.err.println("Error reading serial data: " + e);
             headerIndex = 0;
@@ -133,8 +134,14 @@ public class SerialDataHandler {
     }
 
     private void parseTelemetryPacket(byte[] packetData) {
+        if (packetData.length < TELEMETRY_SIZE) {
+            System.err.println("Telemetry packet size mismatch: expected " + TELEMETRY_SIZE + ", got " + packetData.length);
+            return;
+        }
+    
         ByteBuffer buffer = ByteBuffer.wrap(packetData).order(ByteOrder.LITTLE_ENDIAN);
-
+        // print in hex
+        System.out.println("Telemetry Packet: " + bytesToHex(packetData));
         latestData.roll = buffer.getFloat();
         latestData.pitch = buffer.getFloat();
         latestData.yaw = buffer.getFloat();
@@ -147,13 +154,27 @@ public class SerialDataHandler {
         latestData.gpsFix = buffer.get() != 0;
         latestData.checksum = buffer.getShort() & 0xFFFF;
     }
-
+    
     private void parseBaroPacket(byte[] packetData) {
+        if (packetData.length < BARO_SIZE) {
+            System.err.println("Barometer packet size mismatch: expected " + BARO_SIZE + ", got " + packetData.length);
+            return;
+        }
+    
         ByteBuffer buffer = ByteBuffer.wrap(packetData).order(ByteOrder.LITTLE_ENDIAN);
-
+    
+        System.out.println("Telemetry Packet: " + bytesToHex(packetData));
         latestData.temperature = buffer.getFloat();
         latestData.pressure = buffer.getFloat();
         latestData.baroAltitude = buffer.getFloat();
         latestData.seaLevelPressure = buffer.getFloat();
+    }
+    
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder hex = new StringBuilder();
+        for (byte b : bytes) {
+            hex.append(String.format("%02X ", b));
+        }
+        return hex.toString();
     }
 }

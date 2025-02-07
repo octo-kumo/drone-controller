@@ -11,7 +11,7 @@ public class DroneData {
     public double longitude;
     public double altitude;
     public float groundSpeed;
-    public int satellites;
+    public float satellites;
     public boolean gpsFix;
 
     // Barometer Data
@@ -22,6 +22,5 @@ public class DroneData {
 
     // Status Data
     public boolean armed;
-    public int battery;
     public int checksum;
 }
