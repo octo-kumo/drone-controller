@@ -24,7 +24,7 @@ public class DroneGroundStation extends SimpleApplication {
     private EnvironmentManager envManager;
     private VersionedReference<Double> skyHourRef;
 
-    private Label gps, altitude, pressure, speed, satellites, temperature, baroAltitude;
+    private Label gps, altitude, pressure, speed, satellites, temperature, baroAltitude, telemetryFrequency, baroFrequency;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @Override
@@ -70,6 +70,8 @@ public class DroneGroundStation extends SimpleApplication {
         satellites = hud.addChild(new Label("Satellites: 0"));
         temperature = hud.addChild(new Label("Temperature: 0 C"));
         baroAltitude = hud.addChild(new Label("Baro Altitude: 0 m"));
+        telemetryFrequency = hud.addChild(new Label("Telemetry Frequency: 0 Hz"));
+        baroFrequency = hud.addChild(new Label("Baro Frequency: 0 Hz"));
 
         guiNode.attachChild(hud);
 
@@ -131,6 +133,8 @@ public class DroneGroundStation extends SimpleApplication {
                     satellites.setText("Satellites: " + data.satellites);
                     temperature.setText(String.format("Temperature: %.2f C", data.temperature));
                     baroAltitude.setText(String.format("Baro Altitude: %.2f m", data.baroAltitude));
+                    telemetryFrequency.setText(String.format("Telemetry Frequency: %.1f Hz", serialHandler.telemetryFrequency));
+                    baroFrequency.setText(String.format("Baro Frequency: %.1f Hz", serialHandler.baroFrequency));
                 });
             }
         });

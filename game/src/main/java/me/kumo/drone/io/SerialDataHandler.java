@@ -12,6 +12,13 @@ public class SerialDataHandler {
     private static final int MAX_BUFFER_SIZE = 1024;
     private static final int TELEMETRY_SIZE = 32; // 7 floats + 1 int + 2 bytes + 2 bytes
     private static final int BARO_SIZE = 16; // 4 floats
+    private static final int FREQUENCY_WINDOW_SIZE = 10;
+    private final long[] telemetryTimestamps = new long[FREQUENCY_WINDOW_SIZE];
+    private final long[] baroTimestamps = new long[FREQUENCY_WINDOW_SIZE];
+    private int telemetryTimestampIndex = 0;
+    private int baroTimestampIndex = 0;
+    public double telemetryFrequency = 0.0;
+    public double baroFrequency = 0.0;
 
     private SerialPort port;
     private boolean debugMode = false;
@@ -138,16 +145,25 @@ public class SerialDataHandler {
             System.err.println("Telemetry packet size mismatch: expected " + TELEMETRY_SIZE + ", got " + packetData.length);
             return;
         }
-    
+
+        // Update frequency calculation
+        telemetryTimestamps[telemetryTimestampIndex] = System.currentTimeMillis();
+        telemetryTimestampIndex = (telemetryTimestampIndex + 1) % FREQUENCY_WINDOW_SIZE;
+        telemetryFrequency = calculateFrequency(telemetryTimestamps);
+
         ByteBuffer buffer = ByteBuffer.wrap(packetData).order(ByteOrder.LITTLE_ENDIAN);
         // print in hex
-        System.out.println("Telemetry Packet: " + bytesToHex(packetData));
+        // System.out.println("Telemetry Packet: " + bytesToHex(packetData));
         latestData.roll = buffer.getFloat();
         latestData.pitch = buffer.getFloat();
         latestData.yaw = buffer.getFloat();
         latestData.altitude = buffer.getFloat();
-        latestData.latitude = buffer.getFloat();
-        latestData.longitude = buffer.getFloat();
+        float lat = buffer.getFloat();
+        float lon = buffer.getFloat();
+        if (lat != 0 && lon != 0) {
+            latestData.latitude = lat;
+            latestData.longitude = lon;
+        }
         latestData.groundSpeed = buffer.getFloat();
         latestData.satellites = buffer.getInt();
         latestData.armed = buffer.get() != 0;
@@ -160,10 +176,15 @@ public class SerialDataHandler {
             System.err.println("Barometer packet size mismatch: expected " + BARO_SIZE + ", got " + packetData.length);
             return;
         }
-    
+
+        // Update frequency calculation
+        baroTimestamps[baroTimestampIndex] = System.currentTimeMillis();
+        baroTimestampIndex = (baroTimestampIndex + 1) % FREQUENCY_WINDOW_SIZE;
+        baroFrequency = calculateFrequency(baroTimestamps);
+
         ByteBuffer buffer = ByteBuffer.wrap(packetData).order(ByteOrder.LITTLE_ENDIAN);
     
-        System.out.println("Telemetry Packet: " + bytesToHex(packetData));
+        // System.out.println("Telemetry Packet: " + bytesToHex(packetData));
         latestData.temperature = buffer.getFloat();
         latestData.pressure = buffer.getFloat();
         latestData.baroAltitude = buffer.getFloat();
@@ -176,5 +197,38 @@ public class SerialDataHandler {
             hex.append(String.format("%02X ", b));
         }
         return hex.toString();
+    }
+
+    private double calculateFrequency(long[] timestamps) {
+        long newest = timestamps[0];
+        long oldest = timestamps[0];
+        
+        // Find newest and oldest timestamps
+        for (long timestamp : timestamps) {
+            if (timestamp > newest) newest = timestamp;
+            if (timestamp < oldest && timestamp != 0) oldest = timestamp;
+        }
+
+        // If we don't have enough samples yet
+        if (oldest == 0 || newest == oldest) {
+            return 0.0;
+        }
+
+        // Calculate frequency in Hz
+        double timespan = (newest - oldest) / 1000.0; // Convert to seconds
+        int validSamples = 0;
+        for (long timestamp : timestamps) {
+            if (timestamp != 0) validSamples++;
+        }
+
+        return (validSamples - 1) / timespan; // -1 because we need gaps between samples
+    }
+
+    public double getTelemetryFrequency() {
+        return telemetryFrequency;
+    }
+
+    public double getBaroFrequency() {
+        return baroFrequency;
     }
 }
