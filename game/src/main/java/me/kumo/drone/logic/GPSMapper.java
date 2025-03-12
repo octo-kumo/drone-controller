@@ -3,7 +3,6 @@ package me.kumo.drone.logic;
 import com.jme3.math.Vector2f;
 
 public class GPSMapper {
-    // Ground station GPS coordinate, used as the origin (0,0)
     private double originLatitude;
     private double originLongitude;
 

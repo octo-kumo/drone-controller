@@ -2,6 +2,7 @@ package me.kumo.drone.game;
 
 import com.fazecast.jSerialComm.SerialPort;
 import com.jme3.app.SimpleApplication;
+import com.jme3.input.ChaseCamera;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
@@ -13,8 +14,11 @@ import jme3utilities.MyCamera;
 import me.kumo.drone.io.SerialDataHandler;
 import me.kumo.drone.logic.DroneData;
 import me.kumo.drone.logic.GPSMapper;
+import me.kumo.drone.map.MapLayer;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
 public class DroneGroundStation extends SimpleApplication {
 
     private SerialDataHandler serialHandler;
@@ -26,6 +30,9 @@ public class DroneGroundStation extends SimpleApplication {
 
     private Label gps, altitude, pressure, speed, satellites, temperature, baroAltitude, telemetryFrequency, baroFrequency;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private MapLayer mapLayer;
+    private Button followDrone;
+    private ChaseCamera chaseCam;
 
     @Override
     public void simpleInitApp() {
@@ -47,6 +54,32 @@ public class DroneGroundStation extends SimpleApplication {
 
         MiniMapState minimap = new MiniMapState(rootNode, 64f, 200);
         stateManager.attach(minimap);
+        Vector3f gpsOrigin = new Vector3f(-73.5747F, 0, 45.5041F);
+        float worldUnitsPerGpsUnit = 10000f;
+        float viewingDistance = 1000000f;
+        mapLayer = new MapLayer(assetManager, cam, this, gpsOrigin, worldUnitsPerGpsUnit, viewingDistance);
+        rootNode.attachChild(mapLayer);
+        chaseCam.setEnabled(false);
+    }
+
+    boolean _follow = false;
+
+    private void setFollow(boolean follow) {
+        _follow = follow;
+        if (chaseCam == null) {
+            chaseCam = new ChaseCamera(cam, drone.getModelNode(), inputManager);
+            chaseCam.setSmoothMotion(true);
+            chaseCam.setDefaultDistance(10f);
+            chaseCam.setChasingSensitivity(5f);
+            chaseCam.setRotationSensitivity(5f);
+        }
+        if (follow) {
+            flyCam.setEnabled(false);
+            chaseCam.setEnabled(true);
+        } else {
+            flyCam.setEnabled(true);
+            chaseCam.setEnabled(false);
+        }
     }
 
     private void setupCamera() {
@@ -62,7 +95,11 @@ public class DroneGroundStation extends SimpleApplication {
         TbtQuadBackgroundComponent c = (TbtQuadBackgroundComponent) hud.getBackground();
         c.setColor(new ColorRGBA(0, 0, 0, 1f));
         hud.setLocalTranslation(settings.getWidth() - 300, settings.getHeight() - 300, 0);
-
+        followDrone = hud.addChild(new Button("Follow Drone"));
+        followDrone.addClickCommands(e -> {
+            setFollow(!_follow);
+            followDrone.setText(_follow ? "Stop Following" : "Follow Drone");
+        });
         altitude = hud.addChild(new Label("Altitude: 0 m"));
         gps = hud.addChild(new Label("GPS: 0, 0"));
         pressure = hud.addChild(new Label("Pressure: 0 hPa"));
@@ -113,19 +150,16 @@ public class DroneGroundStation extends SimpleApplication {
 
     @Override
     public void simpleUpdate(float tpf) {
-        
-
         if (skyHourRef.update()) {
             envManager.skyControl.getSunAndStars().setHour(skyHourRef.get().floatValue());
         }
-
         executor.execute(() -> {
             if (serialHandler.hasNewData()) {
                 DroneData data = serialHandler.getLatestData();
                 enqueue(() -> {
                     drone.updateFromData(data, gpsMapper);
                     miniDroneDisplay.updateOrientation((float) data.pitch, (float) data.yaw, (float) data.roll);
-        
+
                     gps.setText(String.format("GPS: %.6f, %.6f", data.latitude, data.longitude));
                     altitude.setText(String.format("Altitude: %.2f m", data.altitude));
                     pressure.setText(String.format("Pressure: %.2f hPa", data.pressure));
@@ -138,5 +172,14 @@ public class DroneGroundStation extends SimpleApplication {
                 });
             }
         });
+        mapLayer.updateLayer(tpf);
+    }
+
+    @Override
+    public void destroy() {
+        mapLayer.cleanup();
+        serialHandler.closePort();
+        executor.shutdown();
+        super.destroy();
     }
 }

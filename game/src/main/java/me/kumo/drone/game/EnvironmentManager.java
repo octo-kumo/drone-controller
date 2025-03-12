@@ -34,7 +34,7 @@ public class EnvironmentManager {
         this.cam = cam;
         this.viewPort = viewPort;
 
-        createGround();
+//        createGround();
         initializeLights();
         initializeSky();
     }
