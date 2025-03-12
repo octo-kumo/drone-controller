@@ -59,7 +59,6 @@ public class DroneGroundStation extends SimpleApplication {
         float viewingDistance = 1000000f;
         mapLayer = new MapLayer(assetManager, cam, this, gpsOrigin, worldUnitsPerGpsUnit, viewingDistance);
         rootNode.attachChild(mapLayer);
-        chaseCam.setEnabled(false);
     }
 
     boolean _follow = false;
