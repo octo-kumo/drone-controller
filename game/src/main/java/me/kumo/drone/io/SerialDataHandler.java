@@ -10,15 +10,15 @@ public class SerialDataHandler {
     // Packet format constants
     private static final byte[] HEADER = new byte[]{(byte) 0xAA, (byte) 0xBB, (byte) 0xCC, (byte) 0xDD};
     private static final int MAX_BUFFER_SIZE = 1024;
-    private static final int TELEMETRY_SIZE = 32; // 7 floats + 1 int + 2 bytes + 2 bytes
-    private static final int BARO_SIZE = 16; // 4 floats
+
+    // The struct in Arduino is 36 bytes (7 floats + 1 int32 + 2 uint8 + 1 uint16)
+    // 7 * 4 + 4 + 1 + 1 + 2 = 36 bytes
+    private static final int TELEMETRY_SIZE = 36;
     private static final int FREQUENCY_WINDOW_SIZE = 10;
     private final long[] telemetryTimestamps = new long[FREQUENCY_WINDOW_SIZE];
-    private final long[] baroTimestamps = new long[FREQUENCY_WINDOW_SIZE];
     private int telemetryTimestampIndex = 0;
-    private int baroTimestampIndex = 0;
     public double telemetryFrequency = 0.0;
-    public double baroFrequency = 0.0;
+    public double baroFrequency = 0.0; // Keep for compatibility
 
     private SerialPort port;
     private boolean debugMode = false;
@@ -74,25 +74,36 @@ public class SerialDataHandler {
         latestData.pitch = 100 * Math.sin(currentTime / 4000.0);
         latestData.yaw = 100 * Math.sin(currentTime / 5000.0);
         latestData.pressure = 1013.25;
+
+        // Provide default values for barometer data
+        latestData.baroAltitude = (float) latestData.altitude;
+        latestData.temperature = 20.0F;
+        latestData.seaLevelPressure = 1013.25F;
     }
 
     private void readSerialData() {
         try {
-            
-            // Read barometer packet
-            byte[] baroPacket = readPacket(BARO_SIZE);
-            if (baroPacket != null) {
-                parseBaroPacket(baroPacket);
-            }
-
-            // Read telemetry packet
+            // Only read telemetry packet now
             byte[] telemetryPacket = readPacket(TELEMETRY_SIZE);
             if (telemetryPacket != null) {
-                parseTelemetryPacket(telemetryPacket);
-            }
+                // Debug: print received packet size and first few bytes
+                System.out.println("Received packet of size: " + telemetryPacket.length +
+                        " bytes, first bytes: " + bytesToHex(telemetryPacket, 0, Math.min(16, telemetryPacket.length)));
 
+                parseTelemetryPacket(telemetryPacket);
+
+                // Set default values for barometer data
+                latestData.baroAltitude = (float) latestData.altitude; // Use telemetry altitude
+                latestData.temperature = 20.0F; // Default temperature
+                latestData.pressure = 1013.25; // Default pressure
+                latestData.seaLevelPressure = 1013.25F; // Default sea level pressure
+
+                // Update barometer frequency to match telemetry for compatibility
+                baroFrequency = telemetryFrequency;
+            }
         } catch (Exception e) {
-            System.err.println("Error reading serial data: " + e);
+            System.err.println("Error in readSerialData: " + e);
+            e.printStackTrace();
             headerIndex = 0;
         }
     }
@@ -141,8 +152,14 @@ public class SerialDataHandler {
     }
 
     private void parseTelemetryPacket(byte[] packetData) {
+        if (packetData == null || packetData.length < 1) {
+            System.err.println("Error: Empty packet data received");
+            return;
+        }
+
         if (packetData.length < TELEMETRY_SIZE) {
             System.err.println("Telemetry packet size mismatch: expected " + TELEMETRY_SIZE + ", got " + packetData.length);
+            System.err.println("Packet data: " + bytesToHex(packetData));
             return;
         }
 
@@ -151,50 +168,50 @@ public class SerialDataHandler {
         telemetryTimestampIndex = (telemetryTimestampIndex + 1) % FREQUENCY_WINDOW_SIZE;
         telemetryFrequency = calculateFrequency(telemetryTimestamps);
 
-        ByteBuffer buffer = ByteBuffer.wrap(packetData).order(ByteOrder.LITTLE_ENDIAN);
-        // print in hex
-        // System.out.println("Telemetry Packet: " + bytesToHex(packetData));
-        latestData.roll = buffer.getFloat();
-        latestData.pitch = buffer.getFloat();
-        latestData.yaw = buffer.getFloat();
-        latestData.altitude = buffer.getFloat();
-        float lat = buffer.getFloat();
-        float lon = buffer.getFloat();
-        if (lat != 0 && lon != 0) {
-            latestData.latitude = lat;
-            latestData.longitude = lon;
-        }
-        latestData.groundSpeed = buffer.getFloat();
-        latestData.satellites = buffer.getInt();
-        latestData.armed = buffer.get() != 0;
-        latestData.gpsFix = buffer.get() != 0;
-        latestData.checksum = buffer.getShort() & 0xFFFF;
-    }
-    
-    private void parseBaroPacket(byte[] packetData) {
-        if (packetData.length < BARO_SIZE) {
-            System.err.println("Barometer packet size mismatch: expected " + BARO_SIZE + ", got " + packetData.length);
-            return;
-        }
+        try {
+            ByteBuffer buffer = ByteBuffer.wrap(packetData).order(ByteOrder.LITTLE_ENDIAN);
 
-        // Update frequency calculation
-        baroTimestamps[baroTimestampIndex] = System.currentTimeMillis();
-        baroTimestampIndex = (baroTimestampIndex + 1) % FREQUENCY_WINDOW_SIZE;
-        baroFrequency = calculateFrequency(baroTimestamps);
+            // Safely read data from buffer with checks
+            if (buffer.remaining() >= 4) latestData.roll = buffer.getFloat();
+            if (buffer.remaining() >= 4) latestData.pitch = buffer.getFloat();
+            if (buffer.remaining() >= 4) latestData.yaw = buffer.getFloat();
+            if (buffer.remaining() >= 4) latestData.altitude = buffer.getFloat();
 
-        ByteBuffer buffer = ByteBuffer.wrap(packetData).order(ByteOrder.LITTLE_ENDIAN);
-    
-        // System.out.println("Telemetry Packet: " + bytesToHex(packetData));
-        latestData.temperature = buffer.getFloat();
-        latestData.pressure = buffer.getFloat();
-        latestData.baroAltitude = buffer.getFloat();
-        latestData.seaLevelPressure = buffer.getFloat();
+            float lat = 0, lon = 0;
+            if (buffer.remaining() >= 4) lat = buffer.getFloat();
+            if (buffer.remaining() >= 4) lon = buffer.getFloat();
+
+            // Validate GPS data before using it
+            if (!Float.isNaN(lat) && !Float.isNaN(lon) &&
+                    lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                latestData.latitude = lat;
+                latestData.longitude = lon;
+            }
+
+            if (buffer.remaining() >= 4) latestData.groundSpeed = buffer.getFloat();
+            if (buffer.remaining() >= 4) latestData.satellites = buffer.getInt();
+            if (buffer.remaining() >= 1) latestData.armed = buffer.get() != 0;
+            if (buffer.remaining() >= 1) latestData.gpsFix = buffer.get() != 0;
+            if (buffer.remaining() >= 2) latestData.checksum = buffer.getShort() & 0xFFFF;
+
+            // Debug output for valid data
+            System.out.printf("Valid telemetry data received - Alt: %.2f, Roll: %.2f, Pitch: %.2f, Yaw: %.2f%n",
+                    latestData.altitude, latestData.roll, latestData.pitch, latestData.yaw);
+        } catch (Exception e) {
+            System.err.println("Error parsing telemetry packet: " + e);
+            System.err.println("Packet data: " + bytesToHex(packetData));
+            e.printStackTrace();
+        }
     }
-    
+
     private static String bytesToHex(byte[] bytes) {
+        return bytesToHex(bytes, 0, bytes.length);
+    }
+
+    private static String bytesToHex(byte[] bytes, int offset, int length) {
         StringBuilder hex = new StringBuilder();
-        for (byte b : bytes) {
-            hex.append(String.format("%02X ", b));
+        for (int i = offset; i < offset + length && i < bytes.length; i++) {
+            hex.append(String.format("%02X ", bytes[i]));
         }
         return hex.toString();
     }
@@ -202,7 +219,7 @@ public class SerialDataHandler {
     private double calculateFrequency(long[] timestamps) {
         long newest = timestamps[0];
         long oldest = timestamps[0];
-        
+
         // Find newest and oldest timestamps
         for (long timestamp : timestamps) {
             if (timestamp > newest) newest = timestamp;
